@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gate Scanner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--
+  STAFF GATE SCANNER - host this file on any HTTPS static host (GitHub Pages, Netlify, Cloudflare Pages).
+  It must NOT be inside Apps Script, because Apps Script pages run in a sandboxed iframe that blocks the camera.
+  Staff sign in with their Google account (only emails on the Staff tab of the Sheet are accepted); after that
+  every scan checks the student in automatically.
+-->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --text:#f1f3f5; --muted:#9aa3af; --blue:#1a73e8; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  body { padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom); max-width:520px; margin:0 auto; }
+  h1 { font-size:18px; margin:14px 0 10px; text-align:center; }
+  .card { background:var(--card); border-radius:14px; padding:16px; margin-bottom:12px; }
+  input[type=password], input[type=text] { width:100%; padding:13px; font-size:16px; border-radius:8px;
+    border:1px solid #333a45; background:#0f1115; color:var(--text); margin-bottom:10px; }
+  button { width:100%; padding:14px; font-size:16px; font-weight:700; border:0; border-radius:8px;
+    color:#fff; background:var(--blue); cursor:pointer; }
+  button.secondary { background:#3a4150; }
+  button:disabled { opacity:.5; }
+  #reader { width:100%; border-radius:12px; overflow:hidden; background:#000; min-height:240px; }
+  #result { text-align:center; border-radius:14px; padding:18px 12px; margin:12px 0; background:var(--card);
+    transition: background .15s; }
+  #result .title { font-size:26px; font-weight:800; line-height:1.15; }
+  #result .name  { font-size:22px; margin-top:8px; word-break:break-word; }
+  #result .meta  { font-size:15px; margin-top:6px; opacity:.9; }
+  #result.ready    { background:var(--card); }
+  #result.checking { background:#1f3a6e; }
+  #result.ok       { background:#137333; }
+  #result.dup      { background:#b06000; }
+  #result.bad      { background:#b3261e; }
+  .row { display:flex; gap:10px; align-items:center; justify-content:space-between; margin:8px 2px; font-size:14px; color:var(--muted); }
+  .row label { display:flex; gap:8px; align-items:center; color:var(--text); font-size:15px; }
+  .row input[type=checkbox] { width:20px; height:20px; }
+  .hidden { display:none !important; }
+  #err { color:#ff8a80; font-size:14px; min-height:18px; margin-top:6px; text-align:center; }
+</style>
+</head>
+<body>
+
+<h1 id="title">Gate Scanner</h1>
+<div id="who" style="text-align:center;color:var(--muted);font-size:13px;margin:-4px 0 8px;"></div>
+
+<!-- LOGIN -->
+<div id="loginView" class="card" style="text-align:center;">
+  <p style="margin:0 0 14px;color:var(--muted);">Sign in with your school Google account. Only staff approved by the admin can check people in.</p>
+  <div id="gsiBtn" style="display:flex;justify-content:center;"></div>
+  <div id="err"></div>
+</div>
+
+<!-- SCANNER -->
+<div id="scanView" class="hidden">
+  <div id="reader"></div>
+
+  <div id="result" class="ready">
+    <div class="title" id="rTitle">READY TO SCAN</div>
+    <div class="name"  id="rName"></div>
+    <div class="meta"  id="rMeta"></div>
+    <button id="confirmBtn" type="button" class="hidden" style="margin-top:12px;">✅ Confirm Entry</button>
+  </div>
+
+  <div class="row">
+    <label><input type="checkbox" id="autoToggle" checked> Auto check-in on scan</label>
+    <span>Entered: <strong id="count">0</strong></span>
+  </div>
+
+  <div class="card">
+    <input type="text" id="manualInput" placeholder="Manual: Entry ID, email or name">
+    <button id="manualBtn" type="button" class="secondary">Look up</button>
+  </div>
+
+  <button id="logoutBtn" type="button" class="secondary">Sign out</button>
+</div>
+
+<script>
+  // >>> Your deployed Apps Script Web App URL (must end in /exec). <<<
+  const API_URL = "https://script.google.com/macros/s/AKfycbweNXyCQVYt8XLdul_bq-cfxVFyssKGMUudrxtIwIz_VphyH9PwuJiuuGsX6AWZWWsgEQ/exec";
+
+  const $ = id => document.getElementById(id);
+  // >>> OAuth "Web application" Client ID from Google Cloud Console (same value as CONFIG.GOOGLE_CLIENT_ID in Code.gs). <<<
+  const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID.apps.googleusercontent.com";
+  const SESSION_KEY = "gate_session_v1";
+
+  let session = null;
+  let staffEmail = "";
+  let qr = null;
+  let busy = false;
+  let lastText = "";
+  let lastTime = 0;
+  let pendingEntryId = "";   // for manual-confirm mode
+  let enteredCount = 0;
+  let audioCtx = null;
+
+  // ---------- storage (guarded: can be unavailable in private mode) ----------
+  function saveSession(token, ttlSec, email) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ token, email, exp: Date.now() + (ttlSec - 60) * 1000 })); } catch (e) {}
+  }
+  function loadSession() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+      return s && s.exp > Date.now() ? s : null;
+    } catch (e) { return null; }
+  }
+  function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+
+  // ---------- API ----------
+  async function api(payload) {
+    // text/plain keeps this a CORS "simple request" (no preflight), which Apps Script requires.
+    const res = await fetch(API_URL, {
+      method: "POST",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+
+  // ---------- feedback ----------
+  function beep(freq, ms) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = freq; o.connect(g); g.connect(audioCtx.destination);
+      g.gain.value = 0.15; o.start(); o.stop(audioCtx.currentTime + ms / 1000);
+    } catch (e) {}
+  }
+  function buzz(pattern) { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {} }
+
+  function show(cls, title, name, meta) {
+    $("result").className = cls;
+    $("rTitle").textContent = title;
+    $("rName").textContent = name || "";
+    $("rMeta").textContent = meta || "";
+  }
+
+  function render(res, mode) {
+    $("confirmBtn").classList.add("hidden");
+    pendingEntryId = "";
+
+    if (res.code === "SESSION_EXPIRED") { signOut(true); return; }
+
+    if (res.status === "VALID" && res.entryTime) {            // just checked in
+      enteredCount++; $("count").textContent = enteredCount;
+      show("ok", "✅ ENTRY OK", res.name, res.entryId + " · " + res.entryTime);
+      beep(880, 120); buzz(80);
+    } else if (res.status === "VALID") {                      // found, not yet entered (manual mode)
+      show("checking", "VALID – NOT YET ENTERED", res.name, res.entryId);
+      pendingEntryId = res.entryId;
+      $("confirmBtn").classList.remove("hidden");
+      beep(660, 100);
+    } else if (res.status === "ALREADY_ENTERED") {
+      show("dup", "⚠ ALREADY ENTERED", res.name, res.entryId + " · " + res.entryTime);
+      beep(300, 250); buzz([120, 80, 120]);
+    } else {                                                  // INVALID / ERROR
+      show("bad", "❌ " + (res.message || "NOT ALLOWED"), "", "");
+      beep(200, 350); buzz(300);
+    }
+  }
+
+  // ---------- scan handling ----------
+  // The QR holds a link like  https://script.google.com/.../exec?entry=REG-000123&t=abc...
+  function parseScan(text) {
+    try {
+      const u = new URL(text);
+      const entry = u.searchParams.get("entry");
+      if (entry) return { entry, t: u.searchParams.get("t") || "" };
+    } catch (e) {}
+    if (/^REG-\d+$/i.test(text.trim())) return { entry: text.trim(), t: "" };
+    return null;
+  }
+
+  async function onScan(text) {
+    const now = Date.now();
+    if (busy || (text === lastText && now - lastTime < 4000)) return; // ignore repeats of the same code
+    lastText = text; lastTime = now;
+
+    const parsed = parseScan(text);
+    if (!parsed) { show("bad", "❌ NOT A VALID TICKET QR", "", ""); beep(200, 350); return; }
+
+    busy = true;
+    show("checking", "Checking…", parsed.entry, "");
+    try {
+      const auto = $("autoToggle").checked && parsed.t;
+      const res = auto
+        ? await api({ action: "checkin", session, entry: parsed.entry, t: parsed.t })
+        : await api({ action: "lookup", session, query: parsed.entry });
+      render(res);
+    } catch (e) {
+      lastText = ""; // allow an immediate re-scan after a network failure
+      show("bad", "Network/server error – scan again", "", String(e.message || e));
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function lookupManual() {
+    const q = $("manualInput").value.trim();
+    if (!q || busy) return;
+    busy = true; show("checking", "Searching…", q, "");
+    try {
+      render(await api({ action: "lookup", session, query: q }));
+      $("manualInput").value = "";
+    } catch (e) {
+      show("bad", "Network/server error – try again", "", String(e.message || e));
+    } finally { busy = false; }
+  }
+
+  async function confirmPending() {
+    if (!pendingEntryId || busy) return;
+    busy = true; $("confirmBtn").disabled = true;
+    try {
+      render(await api({ action: "confirm", session, entry: pendingEntryId }));
+    } catch (e) {
+      show("bad", "Network/server error – tap Confirm again", "", String(e.message || e));
+      $("confirmBtn").classList.remove("hidden");
+    } finally { busy = false; $("confirmBtn").disabled = false; }
+  }
+
+  // ---------- camera ----------
+  async function startCamera() {
+    qr = new Html5Qrcode("reader");
+    try {
+      await qr.start(
+        { facingMode: "environment" },
+        { fps: 12, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.75); return { width: s, height: s }; } },
+        onScan,
+        () => {}
+      );
+    } catch (err) {
+      show("bad", "Camera blocked", "", "Allow camera access in the browser, and open this page over HTTPS. (" + err + ")");
+    }
+  }
+  async function stopCamera() {
+    try { if (qr) { await qr.stop(); qr.clear(); } } catch (e) {}
+    qr = null;
+  }
+
+  // ---------- login / logout ----------
+  function enterScanView() {
+    $("loginView").classList.add("hidden");
+    $("scanView").classList.remove("hidden");
+    $("who").textContent = staffEmail ? "Signed in as " + staffEmail : "";
+    show("ready", "READY TO SCAN", "", "");
+    startCamera();
+  }
+
+  // Called by Google Identity Services after the staff member picks their account.
+  async function onCredential(resp) {
+    $("err").textContent = "Signing in…";
+    try {
+      const res = await api({ action: "login", idToken: resp.credential });
+      if (res.status === "OK") {
+        session = res.session; staffEmail = res.email || "";
+        saveSession(session, res.ttl || 21600, staffEmail);
+        $("err").textContent = "";
+        beep(1, 1); // unlock audio on this user gesture
+        enterScanView();
+      } else {
+        $("err").textContent = res.message || "Sign-in failed.";
+      }
+    } catch (e) {
+      $("err").textContent = "Could not reach the server. Check your connection and the API_URL.";
+    }
+  }
+
+  function initGoogle() {
+    if (initGoogle.done || !window.google || !google.accounts || !google.accounts.id) return;
+    initGoogle.done = true;
+    google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: onCredential, auto_select: false });
+    google.accounts.id.renderButton($("gsiBtn"), { theme: "filled_blue", size: "large", text: "signin_with", shape: "pill" });
+  }
+  window.onGoogleLibraryLoad = initGoogle;
+  window.addEventListener("load", initGoogle);
+
+  async function signOut(expired) {
+    await stopCamera();
+    if (session && !expired) { try { api({ action: "logout", session }); } catch (e) {} }
+    session = null; staffEmail = ""; clearSession();
+    try { google.accounts.id.disableAutoSelect(); } catch (e) {}
+    $("who").textContent = "";
+    $("scanView").classList.add("hidden");
+    $("loginView").classList.remove("hidden");
+    $("err").textContent = expired ? "Session expired – please sign in again." : "";
+  }
+
+  $("logoutBtn").addEventListener("click", () => signOut(false));
+  $("manualBtn").addEventListener("click", lookupManual);
+  $("manualInput").addEventListener("keydown", e => { if (e.key === "Enter") lookupManual(); });
+  $("confirmBtn").addEventListener("click", confirmPending);
+
+  // Resume a still-valid session (e.g. after a page reload)
+  const saved = loadSession();
+  if (saved) { session = saved.token; staffEmail = saved.email || ""; enterScanView(); }
+</script>
+</body>
+</html>
