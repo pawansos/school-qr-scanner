@@ -4,7 +4,7 @@ import { registrationQuery, validateEndpoint, login, request, logout } from './a
 // EMBEDDED CONFIGURATION - Staff can only change PIN in Script Properties
 // ============================================================================
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxRfmAopX-NwbPQB7CiB47STGAw5xnpmwV9bcpLlt86xR1-ci9HXlgXCAb7YEDd-1I1Rw/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwfhx9f6id-61vgvhpckY4nzoX3XkjtoGe-969yiREp5lNyGSXGzVQaOq5nbk-6Wz-g6g/exec',
   GOOGLE_CLIENT_ID: '558932417013-rsuv78auk467l9cqvpsoppvpueqkq976.apps.googleusercontent.com'
 };
 
