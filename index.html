@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#16654b">
+  <title>Venue Check-In</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script type="module" src="assets/js/app.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="brand"><span class="brand-mark"><i data-lucide="scan-line"></i></span><div><span class="eyebrow">VENUE OPERATIONS</span><h1>Venue Check-In</h1></div></div>
+    <button id="settingsButton" class="icon-button" type="button" title="Sign out" aria-label="Sign out"><i data-lucide="log-out"></i></button>
+  </header>
+  <main>
+    <div class="connection-line"><span id="connection" class="connection">Staff sign-in required</span><span id="gateLabel">Entry desk</span></div>
+    <section class="stats" aria-label="Live registration totals">
+      <div><span>Registered</span><strong id="registeredCount">-</strong></div>
+      <div><span>Entered</span><strong id="enteredCount">-</strong></div>
+      <div><span>Remaining</span><strong id="remainingCount">-</strong></div>
+      <button id="refreshButton" class="icon-button" type="button" title="Refresh totals" aria-label="Refresh totals" disabled><i data-lucide="refresh-cw"></i></button>
+    </section>
+    <div class="workspace">
+      <section class="scan-section" aria-labelledby="scanHeading">
+        <div class="section-heading"><h2 id="scanHeading">Scan ticket</h2><span class="eyebrow">01 / VERIFY</span></div>
+        <div class="viewfinder">
+          <div id="reader"></div>
+          <div id="cameraPlaceholder" class="camera-placeholder"><i data-lucide="scan-qr-code"></i><span id="cameraLabel">Camera off</span></div>
+          <div class="viewfinder-corners" aria-hidden="true"></div>
+          <span class="camera-badge"><span></span> QR SCANNER</span>
+        </div>
+        <div class="scan-actions">
+          <button id="cameraButton" type="button" class="primary" disabled><i data-lucide="camera"></i><span id="cameraButtonLabel">Start camera</span></button>
+          <button id="photoButton" type="button" class="secondary" disabled><i data-lucide="image-up"></i>Upload QR</button>
+          <input id="photoInput" type="file" accept="image/*" hidden>
+        </div>
+        <form id="searchForm" class="manual-search">
+          <label for="query">Manual lookup</label>
+          <div class="input-action"><input id="query" name="query" type="text" placeholder="Entry ID, email, or full name" maxlength="500" required autocomplete="off"><button id="lookupButton" type="submit" class="icon-button" title="Look up registration" aria-label="Look up registration" disabled><i data-lucide="search"></i></button></div>
+        </form>
+        <p id="notice" class="notice" role="status" aria-live="polite">Sign in with an approved Google account to begin.</p>
+      </section>
+      <section class="ticket-section" aria-labelledby="ticketHeading">
+        <div class="section-heading"><h2 id="ticketHeading">Registration</h2><span class="eyebrow">02 / ADMIT</span></div>
+        <div id="emptyResult" class="empty-result"><i data-lucide="ticket"></i><h3>Ready for the next guest</h3><p>No ticket selected</p></div>
+        <div id="result" class="result" hidden aria-live="polite">
+          <div id="resultStatus" class="result-status"></div>
+          <h3 id="resultName"></h3>
+          <dl id="resultDetails">
+            <div><dt>Entry ID</dt><dd id="resultId"></dd></div>
+            <div><dt>Student ID</dt><dd id="resultStudent"></dd></div>
+            <div><dt>Attendees</dt><dd id="resultCount"></dd></div>
+            <div><dt>Entry time</dt><dd id="resultTime"></dd></div>
+          </dl>
+          <p id="resultMessage"></p>
+          <button id="confirmButton" type="button" class="primary" hidden><i data-lucide="check"></i>Confirm entry</button>
+          <button id="nextButton" type="button" class="secondary"><i data-lucide="arrow-right"></i>Next guest</button>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer><span>VENUE CHECK-IN</span><span>Google Sheets connected workflow</span></footer>
+  <dialog id="settingsDialog" aria-labelledby="settingsHeading">
+    <form id="settingsForm">
+      <div class="section-heading"><h2 id="settingsHeading">Staff sign-in</h2></div>
+      <label for="endpoint">Apps Script Web App URL</label><input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec" required>
+      <label for="googleClientId">Google OAuth Web Client ID</label><input id="googleClientId" type="text" placeholder="...apps.googleusercontent.com" required autocomplete="off">
+      <button id="googleSetupButton" type="button" class="secondary">Continue with Google</button>
+      <div id="googleButton" class="google-signin" hidden></div>
+      <p id="googleIdentityStatus" class="notice" aria-live="polite"></p>
+      <div id="pinSection" hidden>
+        <label for="staffPin">4-digit staff PIN</label>
+        <input id="staffPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" required>
+        <button id="connectButton" type="submit" class="primary">Verify and start check-in</button>
+      </div>
+      <p id="settingsError" class="notice" role="alert"></p>
+    </form>
+  </dialog>
+  <div id="fileReader" aria-hidden="true"></div>
+</body>
+</html>
