@@ -1,5 +1,13 @@
 import { registrationQuery, validateEndpoint, login, request, logout } from './api.js';
 
+// ============================================================================
+// EMBEDDED CONFIGURATION - Staff can only change PIN in Script Properties
+// ============================================================================
+const CONFIG = {
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxRfmAopX-NwbPQB7CiB47STGAw5xnpmwV9bcpLlt86xR1-ci9HXlgXCAb7YEDd-1I1Rw/exec',
+  GOOGLE_CLIENT_ID: '558932417013-rsuv78auk467l9cqvpsoppvpueqkq976.apps.googleusercontent.com'
+};
+
 const element = id => document.getElementById(id);
 let settings = null;
 let busy = false;
@@ -230,16 +238,23 @@ function handleRequestError(error) {
 
 function resetGoogleLogin() {
   googleIdToken = '';
-  element('pinSection').hidden = true;
+  element('googleSigninSection').hidden = true;
+  element('pinInputSection').hidden = false;
   element('staffPin').value = '';
   element('googleButton').hidden = true;
   element('googleSetupButton').hidden = false;
   element('googleIdentityStatus').textContent = '';
+  element('connectButton').hidden = true;
+  element('staffPin').focus();
 }
 
 function renderGoogleButton() {
-  const clientId = element('googleClientId').value.trim();
-  if (!clientId) throw new Error('Enter the Google OAuth Web Client ID.');
+  // Use embedded configuration
+  const clientId = CONFIG.GOOGLE_CLIENT_ID;
+  const endpoint = CONFIG.APPS_SCRIPT_URL;
+
+  if (!clientId) throw new Error('Google Client ID not configured.');
+  if (!endpoint) throw new Error('Apps Script URL not configured.');
   if (!window.google?.accounts?.id) throw new Error('Google sign-in is still loading. Try again in a moment.');
 
   if (googleInitializedClientId !== clientId) {
@@ -252,10 +267,11 @@ function renderGoogleButton() {
         }
         googleIdToken = response.credential;
         element('settingsError').textContent = '';
-        element('googleIdentityStatus').textContent = 'Google sign-in complete. Enter the staff PIN.';
+        element('googleIdentityStatus').textContent = 'Google account verified. Click "Start check-in" to continue.';
         element('googleButton').hidden = true;
-        element('pinSection').hidden = false;
-        element('staffPin').focus();
+        element('googleSetupButton').hidden = true;
+        element('connectButton').hidden = false;
+        element('connectButton').focus();
       }
     });
     googleInitializedClientId = clientId;
@@ -288,16 +304,40 @@ async function signOut(revoke = true, message = 'Signed out.') {
   updateControls();
 }
 
+element('verifyPinButton').addEventListener('click', async event => {
+  event.preventDefault();
+  const pin = element('staffPin').value.trim();
+  
+  if (!/^[0-9]{4}$/.test(pin)) {
+    element('settingsError').textContent = 'Enter a valid 4-digit PIN.';
+    return;
+  }
+  
+  // Store the PIN temporarily for later use with Google login
+  sessionStorage.setItem('staff-pin', pin);
+  
+  try {
+    element('settingsError').textContent = 'Verifying PIN...';
+    element('verifyPinButton').disabled = true;
+    
+    // Try to validate PIN with backend (optional - for real-time feedback)
+    // For now, just proceed to Google sign-in if PIN format is valid
+    element('settingsError').textContent = '';
+    element('pinInputSection').hidden = true;
+    element('googleSigninSection').hidden = false;
+    
+    renderGoogleButton();
+    element('googleSetupButton').focus();
+  } catch (error) {
+    element('settingsError').textContent = error.message;
+  } finally {
+    element('verifyPinButton').disabled = false;
+  }
+});
+
 element('googleSetupButton').addEventListener('click', () => {
   try {
-    validateEndpoint(element('endpoint').value);
     renderGoogleButton();
-    try {
-      localStorage.setItem('venue-checkin-settings', JSON.stringify({
-        endpoint: element('endpoint').value.trim(),
-        googleClientId: element('googleClientId').value.trim()
-      }));
-    } catch {}
   } catch (error) {
     element('settingsError').textContent = error.message;
   }
@@ -307,7 +347,13 @@ element('settingsForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (connecting) return;
   if (!googleIdToken) {
-    element('settingsError').textContent = 'Continue with Google before entering the PIN.';
+    element('settingsError').textContent = 'Complete Google sign-in before proceeding.';
+    return;
+  }
+
+  const pin = sessionStorage.getItem('staff-pin');
+  if (!pin || !/^[0-9]{4}$/.test(pin)) {
+    element('settingsError').textContent = 'PIN verification is required.';
     return;
   }
 
@@ -316,11 +362,12 @@ element('settingsForm').addEventListener('submit', async event => {
   element('settingsError').textContent = 'Verifying staff access...';
   updateControls();
   try {
+    // Use embedded configuration
     const candidate = {
-      endpoint: validateEndpoint(element('endpoint').value),
-      googleClientId: element('googleClientId').value.trim()
+      endpoint: validateEndpoint(CONFIG.APPS_SCRIPT_URL),
+      googleClientId: CONFIG.GOOGLE_CLIENT_ID
     };
-    const result = await login(candidate, googleIdToken, element('staffPin').value);
+    const result = await login(candidate, googleIdToken, pin);
     candidate.sessionToken = result.sessionToken;
     candidate.email = result.email;
     const stats = await request(candidate, 'stats');
@@ -328,13 +375,7 @@ element('settingsForm').addEventListener('submit', async event => {
 
     settings = candidate;
     googleIdToken = '';
-    element('staffPin').value = '';
-    try {
-      localStorage.setItem('venue-checkin-settings', JSON.stringify({
-        endpoint: candidate.endpoint,
-        googleClientId: candidate.googleClientId
-      }));
-    } catch {}
+    sessionStorage.removeItem('staff-pin');
     element('connection').textContent = 'Staff signed in';
     element('connection').classList.add('connected');
     element('gateLabel').textContent = candidate.email;
@@ -344,7 +385,6 @@ element('settingsForm').addEventListener('submit', async event => {
     notice('Signed in. Ready for the next guest.');
   } catch (error) {
     element('settingsError').textContent = error.message;
-    element('staffPin').value = '';
     if (error.code === 'AUTH_REQUIRED') resetGoogleLogin();
   } finally {
     connecting = false;

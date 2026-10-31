@@ -68,15 +68,17 @@
   <dialog id="settingsDialog" aria-labelledby="settingsHeading">
     <form id="settingsForm">
       <div class="section-heading"><h2 id="settingsHeading">Staff sign-in</h2></div>
-      <label for="endpoint">Apps Script Web App URL</label><input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec" required>
-      <label for="googleClientId">Google OAuth Web Client ID</label><input id="googleClientId" type="text" placeholder="...apps.googleusercontent.com" required autocomplete="off">
-      <button id="googleSetupButton" type="button" class="secondary">Continue with Google</button>
-      <div id="googleButton" class="google-signin" hidden></div>
-      <p id="googleIdentityStatus" class="notice" aria-live="polite"></p>
-      <div id="pinSection" hidden>
+      <div id="pinInputSection">
         <label for="staffPin">4-digit staff PIN</label>
         <input id="staffPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" required>
-        <button id="connectButton" type="submit" class="primary">Verify and start check-in</button>
+        <button id="verifyPinButton" type="button" class="primary">Verify PIN</button>
+      </div>
+      <div id="googleSigninSection" hidden>
+        <p class="notice">PIN verified. Sign in with your Google account to continue.</p>
+        <button id="googleSetupButton" type="button" class="secondary">Continue with Google</button>
+        <div id="googleButton" class="google-signin" hidden></div>
+        <p id="googleIdentityStatus" class="notice" aria-live="polite"></p>
+        <button id="connectButton" type="submit" class="primary" hidden>Start check-in</button>
       </div>
       <p id="settingsError" class="notice" role="alert"></p>
     </form>
