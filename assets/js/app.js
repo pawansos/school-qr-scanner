@@ -5,7 +5,7 @@ import { registrationQuery, validateEndpoint, login, request, logout } from './a
 // ============================================================================
 const CONFIG = {
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwfhx9f6id-61vgvhpckY4nzoX3XkjtoGe-969yiREp5lNyGSXGzVQaOq5nbk-6Wz-g6g/exec',
-  GOOGLE_CLIENT_ID: '558932417013-rsuv78auk467l9cqvpsoppvpueqkq976.apps.googleusercontent.com'
+  GOOGLE_CLIENT_ID: '558932417013-8tfd4sv5pcgjqtctedsjkni2dqadc2kt.apps.googleusercontent.com'
 };
 
 const element = id => document.getElementById(id);
