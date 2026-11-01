@@ -62,6 +62,10 @@ export function request(settings, action, query = '') {
   return post(settings.endpoint, { action, query, sessionToken: settings.sessionToken });
 }
 
+export function addManualRegistration(settings, attendee) {
+  return post(settings.endpoint, { action: 'addManual', ...attendee, sessionToken: settings.sessionToken });
+}
+
 export function logout(settings) {
   return request(settings, 'logout');
 }

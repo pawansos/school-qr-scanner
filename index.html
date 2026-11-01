@@ -37,18 +37,13 @@
         </div>
         <div class="scan-actions">
           <button id="cameraButton" type="button" class="primary" disabled><i data-lucide="camera"></i><span id="cameraButtonLabel">Start camera</span></button>
-          <button id="photoButton" type="button" class="secondary" disabled><i data-lucide="image-up"></i>Upload QR</button>
-          <input id="photoInput" type="file" accept="image/*" hidden>
+          <button id="manualEntryButton" type="button" class="secondary" disabled><i data-lucide="user-round-plus"></i>Manual Entry</button>
         </div>
         <form id="searchForm" class="manual-search">
           <label for="query">Manual lookup</label>
           <div class="input-action"><input id="query" name="query" type="text" placeholder="Entry ID, email, or full name" maxlength="500" required autocomplete="off"><button id="lookupButton" type="submit" class="icon-button" title="Look up registration" aria-label="Look up registration" disabled><i data-lucide="search"></i></button></div>
         </form>
         <p id="notice" class="notice" role="status" aria-live="polite">Sign in with an approved Google account to begin.</p>
-      </section>
-      <section class="ticket-section" aria-labelledby="ticketHeading">
-        <div class="section-heading"><h2 id="ticketHeading">Registration</h2><span class="eyebrow">02 / ADMIT</span></div>
-        <div id="emptyResult" class="empty-result"><i data-lucide="ticket"></i><h3>Ready for the next guest</h3><p>No ticket selected</p></div>
         <div id="result" class="result" hidden aria-live="polite">
           <div id="resultStatus" class="result-status"></div>
           <h3 id="resultName"></h3>
@@ -84,6 +79,24 @@
       <p id="settingsError" class="notice" role="alert"></p>
     </form>
   </dialog>
-  <div id="fileReader" aria-hidden="true"></div>
+  <dialog id="manualEntryDialog" aria-labelledby="manualEntryHeading">
+    <form id="manualEntryForm">
+      <div class="section-heading"><h2 id="manualEntryHeading">Add attendee</h2><button id="closeManualEntryButton" class="icon-button" type="button" aria-label="Close">×</button></div>
+      <label for="manualName">Full Name</label>
+      <input id="manualName" name="name" type="text" maxlength="200" autocomplete="name" required>
+      <label for="manualStudentId">Student ID</label>
+      <input id="manualStudentId" name="studentId" type="text" maxlength="100" required>
+      <label for="manualAttendeeCount">Attendee Count</label>
+      <input id="manualAttendeeCount" name="attendeeCount" type="number" min="1" step="1" value="1" required>
+      <label for="manualPhone">Phone Number</label>
+      <input id="manualPhone" name="phone" type="tel" maxlength="40" autocomplete="tel" required>
+      <label for="manualEmail">Email <span class="optional">(optional)</span></label>
+      <input id="manualEmail" name="email" type="email" maxlength="254" autocomplete="email">
+      <label for="manualAddress">Address</label>
+      <input id="manualAddress" name="address" type="text" maxlength="500" autocomplete="street-address" required>
+      <p id="manualEntryError" class="notice" role="alert"></p>
+      <button id="saveManualEntryButton" type="submit" class="primary">Add attendee</button>
+    </form>
+  </dialog>
 </body>
 </html>

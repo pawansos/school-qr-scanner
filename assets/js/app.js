@@ -1,4 +1,4 @@
-import { registrationQuery, validateEndpoint, login, request, logout } from './api.js';
+import { registrationQuery, validateEndpoint, login, request, logout, addManualRegistration } from './api.js';
 
 // ============================================================================
 // EMBEDDED CONFIGURATION - Staff can only change PIN in Script Properties
@@ -35,7 +35,7 @@ function notice(message, error = false) {
 
 function updateControls() {
   const blocked = !settings || busy || cameraStarting || connecting;
-  for (const id of ['cameraButton', 'photoButton', 'lookupButton', 'query']) element(id).disabled = blocked;
+  for (const id of ['cameraButton', 'manualEntryButton', 'lookupButton', 'query']) element(id).disabled = blocked;
   element('refreshButton').disabled = blocked || statsBusy;
   element('confirmButton').disabled = blocked || !currentEntry;
   element('nextButton').disabled = busy || cameraStarting;
@@ -46,13 +46,11 @@ function updateControls() {
 function resetResult() {
   currentEntry = '';
   element('result').hidden = true;
-  element('emptyResult').hidden = false;
   element('confirmButton').hidden = true;
   updateControls();
 }
 
 function showResult(result) {
-  element('emptyResult').hidden = true;
   element('result').hidden = false;
   element('result').dataset.status = result.status;
   const confirmed = result.status === 'VALID' && Boolean(result.entryTime);
@@ -70,7 +68,7 @@ function showResult(result) {
   element('resultMessage').textContent = result.message || '';
   element('confirmButton').hidden = !eligible;
   updateControls();
-  if (matchMedia('(max-width: 700px)').matches) element('ticketHeading').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (matchMedia('(max-width: 700px)').matches) element('result').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 async function refreshStats() {
@@ -148,7 +146,7 @@ async function startCamera() {
   } catch (error) {
     element('cameraPlaceholder').hidden = false;
     element('cameraLabel').textContent = 'Camera unavailable';
-    throw new Error('Camera unavailable. Allow camera access in your browser, or use Upload QR. ' + (error.message || String(error)));
+    throw new Error('Camera unavailable. Allow camera access in your browser, or use manual lookup. ' + (error.message || String(error)));
   } finally {
     cameraStarting = false;
     updateControls();
@@ -190,29 +188,44 @@ element('confirmButton').addEventListener('click', async () => {
   }
 });
 
-element('photoButton').addEventListener('click', () => element('photoInput').click());
-element('photoInput').addEventListener('change', async event => {
-  const file = event.target.files[0];
-  event.target.value = '';
-  if (!file || busy || !settings) return;
+element('manualEntryButton').addEventListener('click', () => {
+  element('manualEntryError').textContent = '';
+  element('manualEntryError').classList.remove('error');
+  element('manualEntryDialog').showModal();
+  element('manualName').focus();
+});
+element('closeManualEntryButton').addEventListener('click', () => element('manualEntryDialog').close());
+element('manualEntryForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (busy || !settings) return;
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
+  const attendee = Object.fromEntries(new FormData(form).entries());
+  attendee.attendeeCount = Number(attendee.attendeeCount);
   busy = true;
-  resetResult();
-  notice('Reading QR image...');
-  let fileScanner;
-  let decoded;
+  element('saveManualEntryButton').disabled = true;
+  element('manualEntryError').textContent = 'Adding attendee...';
+  updateControls();
   try {
     await stopCamera();
-    if (!window.Html5Qrcode) throw new Error('Scanner library unavailable.');
-    fileScanner = new Html5Qrcode('fileReader', { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
-    decoded = await fileScanner.scanFile(file, false);
-  } catch {
-    notice('Could not read this image. Choose a clear photo of the complete QR code, or look up the Entry ID.', true);
+    const result = await addManualRegistration(settings, attendee);
+    if (result.status !== 'VALID' || !result.entryId) throw new Error(result.message || 'Attendee could not be added.');
+    element('manualEntryDialog').close();
+    form.reset();
+    element('manualAttendeeCount').value = '1';
+    showResult(result);
+    element('query').value = result.entryId;
+    notice('Attendee added. Review the details, then confirm entry to check them in.');
+    await refreshStats();
+  } catch (error) {
+    element('manualEntryError').textContent = error.message || 'Could not add attendee.';
+    element('manualEntryError').classList.add('error');
+    handleRequestError(error);
   } finally {
-    fileScanner?.clear();
     busy = false;
+    element('saveManualEntryButton').disabled = false;
     updateControls();
   }
-  if (decoded) await lookup(decoded);
 });
 
 element('nextButton').addEventListener('click', () => {
