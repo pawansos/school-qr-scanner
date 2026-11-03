@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- <meta name="referrer" content="no-referrer"> -->
-  <meta name="theme-color" content="#16654b">
+  <meta name="theme-color" content="#20201f">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Venue Check-In</title>
   <link rel="stylesheet" href="assets/css/styles.css">
@@ -41,7 +41,6 @@
         </div>
         <div class="scan-actions">
           <button id="cameraButton" type="button" class="primary" disabled><i data-lucide="camera"></i><span id="cameraButtonLabel">Start camera</span></button>
-          <button id="manualEntryButton" type="button" class="secondary" disabled><i data-lucide="user-round-plus"></i>Manual Entry</button>
         </div>
         <p class="scan-hint">Position the ticket's QR code inside the frame. You can also look up a guest by their details.</p>
       </section>
@@ -64,6 +63,10 @@
           <p id="resultMessage"></p>
           <button id="confirmButton" type="button" class="primary" hidden><i data-lucide="check"></i>Confirm entry</button>
           <button id="nextButton" type="button" class="secondary"><i data-lucide="arrow-right"></i>Next guest</button>
+        </div>
+        <div class="walk-in-actions">
+          <p>Guest not registered? Add their details at the desk.</p>
+          <button id="manualEntryButton" type="button" class="secondary" disabled><i data-lucide="user-round-plus"></i>Manual Entry</button>
         </div>
       </section>
     </div>
