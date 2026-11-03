@@ -295,7 +295,7 @@ function renderGoogleButton() {
   element('googleSetupButton').hidden = true;
   window.google.accounts.id.renderButton(element('googleButton'), {
     theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular',
-    width: Math.min(360, element('settingsDialog').clientWidth - 50)
+    width: Math.min(360, element('googleButton').clientWidth)
   });
 }
 

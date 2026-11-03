@@ -20,6 +20,10 @@
   </header>
   <main>
     <div class="connection-line"><span id="connection" class="connection">Staff sign-in required</span><span id="gateLabel">Entry desk</span></div>
+    <div class="page-heading">
+      <div><span class="eyebrow">STAFF WORKSPACE</span><h2>A warm welcome starts here.</h2><p>Scan a ticket, verify the guest, and keep arrivals moving.</p></div>
+      <span class="desk-badge"><i data-lucide="shield-check"></i>Staff access only</span>
+    </div>
     <section class="stats" aria-label="Live registration totals">
       <div><span>Registered</span><strong id="registeredCount">-</strong></div>
       <div><span>Entered</span><strong id="enteredCount">-</strong></div>
@@ -28,7 +32,7 @@
     </section>
     <div class="workspace">
       <section class="scan-section" aria-labelledby="scanHeading">
-        <div class="section-heading"><h2 id="scanHeading">Scan ticket</h2><span class="eyebrow">01 / VERIFY</span></div>
+        <div class="section-heading"><div><span class="eyebrow">01 / SCAN</span><h2 id="scanHeading">Scan a guest ticket</h2></div><i data-lucide="qr-code" aria-hidden="true"></i></div>
         <div class="viewfinder">
           <div id="reader"></div>
           <div id="cameraPlaceholder" class="camera-placeholder"><i data-lucide="scan-qr-code"></i><span id="cameraLabel">Camera off</span></div>
@@ -39,9 +43,13 @@
           <button id="cameraButton" type="button" class="primary" disabled><i data-lucide="camera"></i><span id="cameraButtonLabel">Start camera</span></button>
           <button id="manualEntryButton" type="button" class="secondary" disabled><i data-lucide="user-round-plus"></i>Manual Entry</button>
         </div>
+        <p class="scan-hint">Position the ticket's QR code inside the frame. You can also look up a guest by their details.</p>
+      </section>
+      <section class="guest-section" aria-labelledby="guestHeading">
+        <div class="section-heading"><div><span class="eyebrow">02 / VERIFY &amp; WELCOME</span><h2 id="guestHeading">Guest check-in</h2></div><i data-lucide="contact-round" aria-hidden="true"></i></div>
         <form id="searchForm" class="manual-search">
           <label for="query">Manual lookup</label>
-          <div class="input-action"><input id="query" name="query" type="text" placeholder="Entry ID, email, or full name" maxlength="500" required autocomplete="off"><button id="lookupButton" type="submit" class="icon-button" title="Look up registration" aria-label="Look up registration" disabled><i data-lucide="search"></i></button></div>
+          <div class="input-action"><input id="query" name="query" type="text" placeholder="ID, email or name" maxlength="500" required autocomplete="off"><button id="lookupButton" type="submit" class="icon-button" title="Look up registration" aria-label="Look up registration" disabled><i data-lucide="search"></i></button></div>
         </form>
         <p id="notice" class="notice" role="status" aria-live="polite">Sign in with an approved Google account to begin.</p>
         <div id="result" class="result" hidden aria-live="polite">
@@ -63,7 +71,10 @@
   <footer><span>VENUE CHECK-IN</span><span>Google Sheets connected workflow</span></footer>
   <dialog id="settingsDialog" aria-labelledby="settingsHeading">
     <form id="settingsForm">
-      <div class="section-heading"><h2 id="settingsHeading">Staff sign-in</h2></div>
+      <div class="dialog-mark" aria-hidden="true"><i data-lucide="shield-check"></i></div>
+      <span class="eyebrow">WELCOME TO VENUE CHECK-IN</span>
+      <div class="section-heading"><h2 id="settingsHeading">Your desk. Ready for arrivals.</h2></div>
+      <p class="dialog-intro">Enter your staff PIN, then sign in with your approved Google account.</p>
       <div id="pinInputSection">
         <label for="staffPin">4-digit staff PIN</label>
         <input id="staffPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" required>

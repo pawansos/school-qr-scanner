@@ -1,6 +1,20 @@
-# School Registration Check-In
+---
+title: School Registration Check-In
+description: Staff registration check-in with Google sign-in and a responsive QR scanning workspace.
+---
 
 A no-build static web app for staff to check in event registrations after Google sign-in and PIN verification.
+
+## Staff workspace
+
+The interface places ticket scanning and guest verification side by side on desktop
+and stacks them on phones. Responsive cards, wrapping registration details, and
+scrollable dialogs keep controls accessible on narrow screens. Google sign-in
+adapts to the dialog's available content width.
+
+After changing the interface, check sign-in, manual lookup, registration results,
+and the Add attendee dialog at phone and desktop widths. Long names, account emails,
+and error messages should wrap without horizontal page scrolling.
 
 ## Project layout
 
